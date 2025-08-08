@@ -1,0 +1,1 @@
+2. Start all services using Docker Compose:

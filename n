@@ -1,0 +1,37 @@
+import unittest
+from app import app, db
+from app.models import SalesData
+
+class TestViews(unittest.TestCase):
+
+    def setUp(self):
+        self.app = app.test_client()
+        self.app_context = app.app_context()
+        self.app_context.push()
+        db.create_all()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        self.app_context.pop()
+
+    def test_add_sales_data(self):
+        response = self.app.post('/sales', json={'week': '2021-W01', 'sales': 1000})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(SalesData.query.count(), 1)
+
+    def test_get_anomalies(self):
+        db.session.add(SalesData(week='2021-W01', sales=1000.0))
+        db.session.add(SalesData(week='2021-W03', sales=3000.0))  # Considered as anomaly
+        db.session.commit()
+
+        response = self.app.get('/anomalies')
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertIn('2021-W03', data['anomalies'])
+
+    def test_send_notification(self):
+        response = self.app.post('/notify', json={'message': 'Test notification'})
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data['message'], 'Notification sent')
